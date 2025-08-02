@@ -133,15 +133,15 @@ vec3 advect(vec2 ab, vec2 vUv, vec2 step, float sc)
     vec2 w  = vec2(-step_x, 0.0);
     vec2 nw = vec2(-step_x, step_y);
 
-    vec3 uv =    texture(fluid, fract(aUv)).xyz;
-    vec3 uv_n =  texture(fluid, fract(aUv+n)).xyz;
-    vec3 uv_e =  texture(fluid, fract(aUv+e)).xyz;
-    vec3 uv_s =  texture(fluid, fract(aUv+s)).xyz;
-    vec3 uv_w =  texture(fluid, fract(aUv+w)).xyz;
-    vec3 uv_nw = texture(fluid, fract(aUv+nw)).xyz;
-    vec3 uv_sw = texture(fluid, fract(aUv+sw)).xyz;
-    vec3 uv_ne = texture(fluid, fract(aUv+ne)).xyz;
-    vec3 uv_se = texture(fluid, fract(aUv+se)).xyz;
+    vec3 uv =    IMG_NORM_PIXEL(fluid, fract(aUv)).xyz;
+    vec3 uv_n =  IMG_NORM_PIXEL(fluid, fract(aUv+n)).xyz;
+    vec3 uv_e =  IMG_NORM_PIXEL(fluid, fract(aUv+e)).xyz;
+    vec3 uv_s =  IMG_NORM_PIXEL(fluid, fract(aUv+s)).xyz;
+    vec3 uv_w =  IMG_NORM_PIXEL(fluid, fract(aUv+w)).xyz;
+    vec3 uv_nw = IMG_NORM_PIXEL(fluid, fract(aUv+nw)).xyz;
+    vec3 uv_sw = IMG_NORM_PIXEL(fluid, fract(aUv+sw)).xyz;
+    vec3 uv_ne = IMG_NORM_PIXEL(fluid, fract(aUv+ne)).xyz;
+    vec3 uv_se = IMG_NORM_PIXEL(fluid, fract(aUv+se)).xyz;
 
     return _G0*uv + _G1*(uv_n + uv_e + uv_w + uv_s) + _G2*(uv_nw + uv_sw + uv_ne + uv_se);
 }
@@ -186,15 +186,15 @@ void main()
         vec2 w  = vec2(-step_x, 0.0);
         vec2 nw = vec2(-step_x, step_y);
 
-        vec3 uv =    texture(fluid, fract(vUv)).xyz;
-        vec3 uv_n =  texture(fluid, fract(vUv+n)).xyz;
-        vec3 uv_e =  texture(fluid, fract(vUv+e)).xyz;
-        vec3 uv_s =  texture(fluid, fract(vUv+s)).xyz;
-        vec3 uv_w =  texture(fluid, fract(vUv+w)).xyz;
-        vec3 uv_nw = texture(fluid, fract(vUv+nw)).xyz;
-        vec3 uv_sw = texture(fluid, fract(vUv+sw)).xyz;
-        vec3 uv_ne = texture(fluid, fract(vUv+ne)).xyz;
-        vec3 uv_se = texture(fluid, fract(vUv+se)).xyz;
+        vec3 uv =    IMG_NORM_PIXEL(fluid, fract(vUv)).xyz;
+        vec3 uv_n =  IMG_NORM_PIXEL(fluid, fract(vUv+n)).xyz;
+        vec3 uv_e =  IMG_NORM_PIXEL(fluid, fract(vUv+e)).xyz;
+        vec3 uv_s =  IMG_NORM_PIXEL(fluid, fract(vUv+s)).xyz;
+        vec3 uv_w =  IMG_NORM_PIXEL(fluid, fract(vUv+w)).xyz;
+        vec3 uv_nw = IMG_NORM_PIXEL(fluid, fract(vUv+nw)).xyz;
+        vec3 uv_sw = IMG_NORM_PIXEL(fluid, fract(vUv+sw)).xyz;
+        vec3 uv_ne = IMG_NORM_PIXEL(fluid, fract(vUv+ne)).xyz;
+        vec3 uv_se = IMG_NORM_PIXEL(fluid, fract(vUv+se)).xyz;
 
         // uv.x and uv.y are the x and y components, uv.z is divergence
 
