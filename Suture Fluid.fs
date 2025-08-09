@@ -109,7 +109,7 @@ float noise( in vec2 p )
 
 vec2 normz(vec2 x)
 {
-	return x == vec2(0., 0.) ? vec2(0., 0.) : normalize(x);
+	return x == vec2(0) ? x : normalize(x);
 }
 
 // reverse advection
@@ -124,13 +124,13 @@ vec3 advect(vec2 ab, vec2 vUv, vec2 step, float sc)
     // 3x3 neighborhood coordinates
     float step_x = step.x;
     float step_y = step.y;
-    vec2 n  = vec2(0.0, step_y);
+    vec2 n  = vec2(0, step_y);
     vec2 ne = vec2(step_x, step_y);
-    vec2 e  = vec2(step_x, 0.0);
+    vec2 e  = vec2(step_x, 0);
     vec2 se = vec2(step_x, -step_y);
-    vec2 s  = vec2(0.0, -step_y);
+    vec2 s  = vec2(0, -step_y);
     vec2 sw = vec2(-step_x, -step_y);
-    vec2 w  = vec2(-step_x, 0.0);
+    vec2 w  = vec2(-step_x, 0);
     vec2 nw = vec2(-step_x, step_y);
 
     vec3 uv =    IMG_NORM_PIXEL(fluid, fract(aUv)).xyz;
@@ -143,7 +143,9 @@ vec3 advect(vec2 ab, vec2 vUv, vec2 step, float sc)
     vec3 uv_ne = IMG_NORM_PIXEL(fluid, fract(aUv+ne)).xyz;
     vec3 uv_se = IMG_NORM_PIXEL(fluid, fract(aUv+se)).xyz;
 
-    return _G0*uv + _G1*(uv_n + uv_e + uv_w + uv_s) + _G2*(uv_nw + uv_sw + uv_ne + uv_se);
+    return _G0 * uv +
+           _G1 * (uv_n + uv_e + uv_w + uv_s) +
+           _G2 * (uv_nw + uv_sw + uv_ne + uv_se);
 }
 
 
@@ -156,18 +158,18 @@ void main()
 {
     if (PASSINDEX == 0) // ShaderToy Buffer A
     {
-        const float _K0 = -20.0/6.0; // center weight
-        const float _K1 = 4.0/6.0;   // edge-neighbors
-        const float _K2 = 1.0/6.0;   // vertex-neighbors
+        const float _K0 = -20./6.; // center weight
+        const float _K1 = 4./6.;   // edge-neighbors
+        const float _K2 = 1./6.;   // vertex-neighbors
         const float cs = -0.6;  // curl scale
         const float ls = 0.05;  // laplacian scale
         const float ps = -0.8;  // laplacian of divergence scale
         const float ds = -0.05; // divergence scale
         const float dp = -0.04; // divergence update scale
         const float pl = 0.3;   // divergence smoothing
-        const float ad = 6.0;   // advection distance scale
-        const float pwr = 1.0;  // power when deriving rotation angle from curl
-        const float amp = 1.0;  // self-amplification
+        const float ad = 6.;   // advection distance scale
+        const float pwr = 1.;  // power when deriving rotation angle from curl
+        const float amp = 1.;  // self-amplification
         const float upd = 0.8;  // update smoothing
         const float sq2 = 0.6;  // diagonal weight
 
@@ -177,13 +179,13 @@ void main()
         // 3x3 neighborhood coordinates
         float step_x = texel.x;
         float step_y = texel.y;
-        vec2 n  = vec2(0.0, step_y);
+        vec2 n  = vec2(0, step_y);
         vec2 ne = vec2(step_x, step_y);
-        vec2 e  = vec2(step_x, 0.0);
+        vec2 e  = vec2(step_x, 0);
         vec2 se = vec2(step_x, -step_y);
-        vec2 s  = vec2(0.0, -step_y);
+        vec2 s  = vec2(0, -step_y);
         vec2 sw = vec2(-step_x, -step_y);
-        vec2 w  = vec2(-step_x, 0.0);
+        vec2 w  = vec2(-step_x, 0);
         vec2 nw = vec2(-step_x, step_y);
 
         vec3 uv =    IMG_NORM_PIXEL(fluid, fract(vUv)).xyz;
@@ -226,22 +228,22 @@ void main()
         float a = ta * cos(sc) - tb * sin(sc);
         float b = ta * sin(sc) + tb * cos(sc);
 
-        vec3 abd = upd * uv + (1.0 - upd) * vec3(a,b,sd);
+        vec3 abd = upd * uv + (1. - upd) * vec3(a,b,sd);
 
         if (paintWithMouse) {
        	    vec2 d = fragCoord.xy - mouse * RENDERSIZE;
-            float m = exp(-length(d) / 10.);
+            float m = exp(-0.1 * length(d));
             abd.xy += m * normz(d);
         }
 
         // initialize with noise
         if (iFrame < 1 || restart) {
-            vec3 rnd = vec3(noise(16.0 * vUv + 1.1), noise(16.0 * vUv + 2.2), noise(16.0 * vUv + 3.3));
-            fragColor = vec4(rnd, 1.);
+            vec3 rnd = vec3(noise(16. * vUv + 1.1), noise(16. * vUv + 2.2), noise(16. * vUv + 3.3));
+            fragColor = vec4(rnd, 1);
         } else {
-            abd.z = clamp(abd.z, -1.0, 1.0);
-            abd.xy = clamp(length(abd.xy) > 1.0 ? normz(abd.xy) : abd.xy, -1.0, 1.0);
-            fragColor = vec4(abd, 1.);
+            abd.z = clamp(abd.z, -1., 1.);
+            abd.xy = clamp(length(abd.xy) > 1. ? normz(abd.xy) : abd.xy, -1., 1.);
+            fragColor = vec4(abd, 1);
             gl_FragColor = (1. - inputImageAmount) * gl_FragColor + inputImageAmount * IMG_PIXEL(inputImage, fragCoord.xy);
         }
     }
@@ -255,6 +257,6 @@ void main()
         vec3 div = vec3(0.1) * norm.z;
         vec3 rbcol = 0.5 + 0.6 * cross(norm.xyz, vec3(0.5, -0.4, 0.5));
 
-        fragColor = vec4(rbcol + div, 1.);
+        fragColor = vec4(rbcol + div, 1);
     }
 }
