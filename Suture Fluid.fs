@@ -165,16 +165,20 @@ void main()
 
     if (PASSINDEX == 0) // ShaderToy Buffer A
     {
-        const float _K0 = -20./6.; // center weight
-        const float _K1 = 4./6.;   // edge-neighbors
-        const float _K2 = 1./6.;   // vertex-neighbors
+        const float advectionDistanceScale = 6.;
+
+        // It’s unclear whether dividing by the advection distance scale is what
+        // was intended in the original ShaderToy shader.
+        float laplacianCenterWeight = -20. / advectionDistanceScale;
+        float laplacianEdgeWeight = 4. / advectionDistanceScale;
+        float laplacianVertexWeight = 1. / advectionDistanceScale;
+
         const float curlScale = -0.6;
         const float laplacianScale = 0.05;
         const float laplacianDivergenceScale = -0.8;
         const float divergenceScale = -0.05;
         const float divergenceUpdateScale = -0.04;
         const float divergenceSmoothing = 0.3;
-        const float advectionDistanceScale = 6.;
         const float curlRotationAnglePower = 1.;
         const float selfAmplification = 1.;
         const float updateSmoothing = 0.8;
@@ -185,7 +189,7 @@ void main()
         // .x and .y are the x and y components, .z is divergence
 
         // laplacian of all components
-        vec3 laplacian = FluidComponents_laplacian(components, _K0, _K1, _K2);
+        vec3 laplacian = FluidComponents_laplacian(components, laplacianCenterWeight, laplacianEdgeWeight, laplacianVertexWeight);
         float scaledLaplacianDivergence = laplacianDivergenceScale * laplacian.z;
 
         // calculate curl
