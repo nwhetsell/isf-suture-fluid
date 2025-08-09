@@ -107,11 +107,6 @@ float noise( in vec2 p )
 
 // [End of Inigo Quilez’ simplex noise]
 
-vec2 normz(vec2 x)
-{
-	return x == vec2(0) ? x : normalize(x);
-}
-
 struct FluidComponents {
     vec3 center;
 
@@ -207,7 +202,7 @@ void main()
                            components.southeast.y - components.southeast.x);
         float sd = components.center.z + dp * div + pl * lapl.z;
 
-        vec2 norm = normz(components.center.xy);
+        vec2 norm = components.center.xy == vec2(0) ? components.center.xy : normalize(components.center.xy);
 
         // reverse advection
         FluidComponents advectionComponents = FluidComponents_create(vUv - components.center.xy * ad * texel, texel);
@@ -224,9 +219,11 @@ void main()
         vec3 abd = upd * components.center + (1. - upd) * vec3(a, b, sd);
 
         if (enableMouse) {
-       	    vec2 d = gl_FragCoord.xy - mouse * RENDERSIZE;
-            float m = exp(-0.1 * length(d));
-            abd.xy += m * normz(d);
+       	    vec2 displacement = gl_FragCoord.xy - mouse * RENDERSIZE;
+            float distance = length(displacement);
+            if (distance > 0) {
+                abd.xy += exp(-0.1 * distance) * normalize(displacement);
+            }
         }
 
         // initialize with noise
