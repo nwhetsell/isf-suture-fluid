@@ -51,6 +51,13 @@
 }
 */
 
+// Function from LYGIA <https://github.com/patriciogonzalezvivo/lygia>
+mat2 rotate2d(const in float r) {
+    float c = cos(r);
+    float s = sin(r);
+    return mat2(c, s, -s, c);
+}
+
 //
 // ShaderToy Buffer A
 //
@@ -205,21 +212,15 @@ void main()
         vec3 advectionLaplacian = FluidComponents_laplacian(advectionComponents, 0.25, 0.125, 0.0625);
 
         // temp values for the update rule
-        float ta = selfAmplification * advectionLaplacian.x +
-                   laplacianScale * laplacian.x +
-                   normalizedCenterComponent.x * scaledLaplacianDivergence +
-                   components.center.x * divergenceScale * smoothedDivergence;
-        float tb = selfAmplification * advectionLaplacian.y +
-                   laplacianScale * laplacian.y +
-                   normalizedCenterComponent.y * scaledLaplacianDivergence +
-                   components.center.y * divergenceScale * smoothedDivergence;
+        vec2 ab = selfAmplification * advectionLaplacian.xy +
+                  laplacianScale * laplacian.xy +
+                  scaledLaplacianDivergence * normalizedCenterComponent.xy +
+                  divergenceScale * smoothedDivergence * components.center.xy;
 
         // rotate
-        float curlRotationAngle = curlScale * sign(curl) * pow(abs(curl), curlRotationAnglePower);
-        float a = ta * cos(curlRotationAngle) - tb * sin(curlRotationAngle);
-        float b = ta * sin(curlRotationAngle) + tb * cos(curlRotationAngle);
+        ab = rotate2d(curlScale * sign(curl) * pow(abs(curl), curlRotationAnglePower)) * ab;
 
-        vec3 abd = updateSmoothing * components.center + (1. - updateSmoothing) * vec3(a, b, smoothedDivergence);
+        vec3 abd = updateSmoothing * components.center + (1. - updateSmoothing) * vec3(ab, smoothedDivergence);
 
         if (enableMouse) {
        	    vec2 displacement = gl_FragCoord.xy - mouse * RENDERSIZE;
@@ -231,23 +232,22 @@ void main()
 
         // initialize with noise
         if (FRAMEINDEX < 1 || restart) {
-            vec3 rnd = vec3(noise(16. * uv + 1.1), noise(16. * uv + 2.2), noise(16. * uv + 3.3));
-            gl_FragColor = vec4(rnd, 1);
+            gl_FragColor.rgb = vec3(noise(16. * uv + 1.1), noise(16. * uv + 2.2), noise(16. * uv + 3.3));
+            gl_FragColor.a = 1;
         } else {
-            abd.z = clamp(abd.z, -1., 1.);
-            abd.xy = clamp(length(abd.xy) > 1. ? normalize(abd.xy) : abd.xy, -1., 1.);
-            gl_FragColor = vec4(abd, 1);
+            gl_FragColor.rg = clamp(length(abd.xy) > 1. ? normalize(abd.xy) : abd.xy, -1., 1.);
+            gl_FragColor.b = clamp(abd.z, -1., 1.);
+            gl_FragColor.a = 1;
             gl_FragColor = (1. - inputImageAmount) * gl_FragColor + inputImageAmount * IMG_PIXEL(inputImage, gl_FragCoord.xy);
         }
     }
     else // ShaderToy Image
     {
-        vec3 c = IMG_NORM_PIXEL(fluid, uv).xyz;
-        vec3 norm = normalize(c);
+        vec3 abd = normalize(IMG_NORM_PIXEL(fluid, uv).xyz);
 
-        vec3 divergence = vec3(0.1 * norm.z);
-        vec3 rbcol = 0.5 + 0.6 * cross(norm.xyz, vec3(0.5, -0.4, 0.5));
+        vec3 color = 0.5 + 0.6 * cross(abd, vec3(0.5, -0.4, 0.5));
+        vec3 divergence = vec3(0.1 * abd.z);
 
-        gl_FragColor = vec4(rbcol + divergence, 1);
+        gl_FragColor = vec4(color + divergence, 1);
     }
 }
