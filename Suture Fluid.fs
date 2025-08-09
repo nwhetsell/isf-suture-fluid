@@ -24,8 +24,8 @@
             "TYPE": "event"
         },
         {
-            "NAME": "paintWithMouse",
-            "LABEL": "Paint with mouse",
+            "NAME": "enableMouse",
+            "LABEL": "Enable mouse",
             "TYPE": "bool",
             "DEFAULT": false
         },
@@ -230,8 +230,8 @@ void main()
 
         vec3 abd = upd * uv + (1. - upd) * vec3(a,b,sd);
 
-        if (paintWithMouse) {
        	    vec2 d = fragCoord.xy - mouse * RENDERSIZE;
+        if (enableMouse) {
             float m = exp(-0.1 * length(d));
             abd.xy += m * normz(d);
         }
