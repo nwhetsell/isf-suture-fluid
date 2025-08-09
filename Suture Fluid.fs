@@ -155,68 +155,71 @@ void main()
 {
     vec2 texel = 1. / RENDERSIZE;
     vec2 uv = gl_FragCoord.xy / RENDERSIZE;
-    vec2 vUv = uv;
 
     if (PASSINDEX == 0) // ShaderToy Buffer A
     {
         const float _K0 = -20./6.; // center weight
         const float _K1 = 4./6.;   // edge-neighbors
         const float _K2 = 1./6.;   // vertex-neighbors
-        const float cs = -0.6;  // curl scale
-        const float ls = 0.05;  // laplacian scale
-        const float ps = -0.8;  // laplacian of divergence scale
-        const float ds = -0.05; // divergence scale
-        const float dp = -0.04; // divergence update scale
-        const float pl = 0.3;   // divergence smoothing
-        const float ad = 6.;   // advection distance scale
-        const float pwr = 1.;  // power when deriving rotation angle from curl
-        const float amp = 1.;  // self-amplification
-        const float upd = 0.8;  // update smoothing
-        const float sq2 = 0.6;  // diagonal weight
+        const float curlScale = -0.6;
+        const float laplacianScale = 0.05;
+        const float laplacianDivergenceScale = -0.8;
+        const float divergenceScale = -0.05;
+        const float divergenceUpdateScale = -0.04;
+        const float divergenceSmoothing = 0.3;
+        const float advectionDistanceScale = 6.;
+        const float curlRotationAnglePower = 1.;
+        const float selfAmplification = 1.;
+        const float updateSmoothing = 0.8;
+        const float diagonalWeight = 0.6;
 
-        FluidComponents components = FluidComponents_create(vUv, texel);
+        FluidComponents components = FluidComponents_create(uv, texel);
 
-        // uv.x and uv.y are the x and y components, uv.z is divergence
+        // .x and .y are the x and y components, .z is divergence
 
         // laplacian of all components
-        vec3 lapl = FluidComponents_laplacian(components, _K0, _K1, _K2);
-        float sp = ps * lapl.z;
+        vec3 laplacian = FluidComponents_laplacian(components, _K0, _K1, _K2);
+        float scaledLaplacianDivergence = laplacianDivergenceScale * laplacian.z;
 
         // calculate curl
         // vectors point clockwise about the center point
         float curl = components.north.x - components.south.x - components.east.y + components.west.y +
-                     sq2 * (components.northwest.x + components.northwest.y +
-                            components.northeast.x - components.northeast.y +
-                            components.southwest.y - components.southwest.x -
-                            components.southeast.y - components.southeast.x);
-
-        // compute angle of rotation from curl
-        float sc = cs * sign(curl) * pow(abs(curl), pwr);
+                     diagonalWeight * (components.northwest.x + components.northwest.y +
+                                       components.northeast.x - components.northeast.y +
+                                       components.southwest.y - components.southwest.x -
+                                       components.southeast.y - components.southeast.x);
 
         // calculate divergence
         // vectors point inwards towards the center point
-        float div = components.south.y - components.north.y - components.east.x + components.west.x +
-                    sq2 * (components.northwest.x - components.northwest.y -
-                           components.northeast.x - components.northeast.y +
-                           components.southwest.x + components.southwest.y +
-                           components.southeast.y - components.southeast.x);
-        float sd = components.center.z + dp * div + pl * lapl.z;
+        float divergence = components.south.y - components.north.y - components.east.x + components.west.x +
+                           diagonalWeight * (components.northwest.x - components.northwest.y -
+                                             components.northeast.x - components.northeast.y +
+                                             components.southwest.x + components.southwest.y +
+                                             components.southeast.y - components.southeast.x);
+        float smoothedDivergence = components.center.z + divergenceUpdateScale * divergence + divergenceSmoothing * laplacian.z;
 
-        vec2 norm = components.center.xy == vec2(0) ? components.center.xy : normalize(components.center.xy);
+        vec2 normalizedCenterComponent = components.center.xy == vec2(0) ? components.center.xy : normalize(components.center.xy);
 
         // reverse advection
-        FluidComponents advectionComponents = FluidComponents_create(vUv - components.center.xy * ad * texel, texel);
-        vec3 ab = FluidComponents_laplacian(advectionComponents, 0.25, 0.125, 0.0625);
+        FluidComponents advectionComponents = FluidComponents_create(uv - components.center.xy * advectionDistanceScale * texel, texel);
+        vec3 advectionLaplacian = FluidComponents_laplacian(advectionComponents, 0.25, 0.125, 0.0625);
 
         // temp values for the update rule
-        float ta = amp * ab.x + ls * lapl.x + norm.x * sp + components.center.x * ds * sd;
-        float tb = amp * ab.y + ls * lapl.y + norm.y * sp + components.center.y * ds * sd;
+        float ta = selfAmplification * advectionLaplacian.x +
+                   laplacianScale * laplacian.x +
+                   normalizedCenterComponent.x * scaledLaplacianDivergence +
+                   components.center.x * divergenceScale * smoothedDivergence;
+        float tb = selfAmplification * advectionLaplacian.y +
+                   laplacianScale * laplacian.y +
+                   normalizedCenterComponent.y * scaledLaplacianDivergence +
+                   components.center.y * divergenceScale * smoothedDivergence;
 
         // rotate
-        float a = ta * cos(sc) - tb * sin(sc);
-        float b = ta * sin(sc) + tb * cos(sc);
+        float curlRotationAngle = curlScale * sign(curl) * pow(abs(curl), curlRotationAnglePower);
+        float a = ta * cos(curlRotationAngle) - tb * sin(curlRotationAngle);
+        float b = ta * sin(curlRotationAngle) + tb * cos(curlRotationAngle);
 
-        vec3 abd = upd * components.center + (1. - upd) * vec3(a, b, sd);
+        vec3 abd = updateSmoothing * components.center + (1. - updateSmoothing) * vec3(a, b, smoothedDivergence);
 
         if (enableMouse) {
        	    vec2 displacement = gl_FragCoord.xy - mouse * RENDERSIZE;
@@ -228,7 +231,7 @@ void main()
 
         // initialize with noise
         if (FRAMEINDEX < 1 || restart) {
-            vec3 rnd = vec3(noise(16. * vUv + 1.1), noise(16. * vUv + 2.2), noise(16. * vUv + 3.3));
+            vec3 rnd = vec3(noise(16. * uv + 1.1), noise(16. * uv + 2.2), noise(16. * uv + 3.3));
             gl_FragColor = vec4(rnd, 1);
         } else {
             abd.z = clamp(abd.z, -1., 1.);
@@ -242,9 +245,9 @@ void main()
         vec3 c = IMG_NORM_PIXEL(fluid, uv).xyz;
         vec3 norm = normalize(c);
 
-        vec3 div = vec3(0.1 * norm.z);
+        vec3 divergence = vec3(0.1 * norm.z);
         vec3 rbcol = 0.5 + 0.6 * cross(norm.xyz, vec3(0.5, -0.4, 0.5));
 
-        gl_FragColor = vec4(rbcol + div, 1);
+        gl_FragColor = vec4(rbcol + divergence, 1);
     }
 }
