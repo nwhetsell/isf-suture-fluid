@@ -304,19 +304,20 @@ void main()
         if (enableMouse) {
        	    vec2 displacement = gl_FragCoord.xy - mouse * RENDERSIZE;
             float distance = length(displacement);
-            if (distance > 0) {
+            if (distance > 0.) {
                 abd.xy += exp(-0.1 * distance) * normalize(displacement);
             }
         }
 
         // initialize with noise
         if (FRAMEINDEX < 1 || restart) {
-            gl_FragColor.rgb = vec3(noise(16. * uv + 1.1), noise(16. * uv + 2.2), noise(16. * uv + 3.3));
-            gl_FragColor.a = 1;
+            vec2 scaled_uv = 16. * uv;
+            gl_FragColor.rgb = vec3(noise(scaled_uv + 1.1), noise(scaled_uv + 2.2), noise(scaled_uv + 3.3));
+            gl_FragColor.a = 1.;
         } else {
             gl_FragColor.rg = clamp(length(abd.xy) > 1. ? normalize(abd.xy) : abd.xy, -1., 1.);
             gl_FragColor.b = clamp(abd.z, -1., 1.);
-            gl_FragColor.a = 1;
+            gl_FragColor.a = 1.;
             gl_FragColor = (1. - inputImageAmount) * gl_FragColor + inputImageAmount * IMG_PIXEL(inputImage, gl_FragCoord.xy);
         }
     }
