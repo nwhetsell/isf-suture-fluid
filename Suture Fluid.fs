@@ -112,40 +112,47 @@ vec2 normz(vec2 x)
 	return x == vec2(0) ? x : normalize(x);
 }
 
-// reverse advection
-vec3 advect(vec2 ab, vec2 vUv, vec2 step, float sc)
+struct FluidComponents {
+    vec3 center;
+
+    vec3 north;
+    vec3 east;
+    vec3 south;
+    vec3 west;
+
+    vec3 northwest;
+    vec3 southwest;
+    vec3 northeast;
+    vec3 southeast;
+};
+
+FluidComponents FluidComponents_create(vec2 center, vec2 stepSizes)
 {
-    vec2 aUv = vUv - ab * sc * step;
+    float step_x = stepSizes.x;
+    float step_y = stepSizes.y;
 
-    const float _G0 = 0.25; // center weight
-    const float _G1 = 0.125; // edge-neighbors
-    const float _G2 = 0.0625; // vertex-neighbors
+    FluidComponents components;
 
-    // 3x3 neighborhood coordinates
-    float step_x = step.x;
-    float step_y = step.y;
-    vec2 n  = vec2(0, step_y);
-    vec2 ne = vec2(step_x, step_y);
-    vec2 e  = vec2(step_x, 0);
-    vec2 se = vec2(step_x, -step_y);
-    vec2 s  = vec2(0, -step_y);
-    vec2 sw = vec2(-step_x, -step_y);
-    vec2 w  = vec2(-step_x, 0);
-    vec2 nw = vec2(-step_x, step_y);
+    components.center = IMG_NORM_PIXEL(fluid, fract(center)).xyz;
 
-    vec3 uv =    IMG_NORM_PIXEL(fluid, fract(aUv)).xyz;
-    vec3 uv_n =  IMG_NORM_PIXEL(fluid, fract(aUv+n)).xyz;
-    vec3 uv_e =  IMG_NORM_PIXEL(fluid, fract(aUv+e)).xyz;
-    vec3 uv_s =  IMG_NORM_PIXEL(fluid, fract(aUv+s)).xyz;
-    vec3 uv_w =  IMG_NORM_PIXEL(fluid, fract(aUv+w)).xyz;
-    vec3 uv_nw = IMG_NORM_PIXEL(fluid, fract(aUv+nw)).xyz;
-    vec3 uv_sw = IMG_NORM_PIXEL(fluid, fract(aUv+sw)).xyz;
-    vec3 uv_ne = IMG_NORM_PIXEL(fluid, fract(aUv+ne)).xyz;
-    vec3 uv_se = IMG_NORM_PIXEL(fluid, fract(aUv+se)).xyz;
+    components.north = IMG_NORM_PIXEL(fluid, fract(center + vec2(      0,  step_y))).xyz;
+    components.east =  IMG_NORM_PIXEL(fluid, fract(center + vec2( step_x,       0))).xyz;
+    components.south = IMG_NORM_PIXEL(fluid, fract(center + vec2(      0, -step_y))).xyz;
+    components.west =  IMG_NORM_PIXEL(fluid, fract(center + vec2(-step_x,       0))).xyz;
 
-    return _G0 * uv +
-           _G1 * (uv_n + uv_e + uv_w + uv_s) +
-           _G2 * (uv_nw + uv_sw + uv_ne + uv_se);
+    components.northwest = IMG_NORM_PIXEL(fluid, fract(center + vec2(-step_x,  step_y))).xyz;
+    components.southwest = IMG_NORM_PIXEL(fluid, fract(center + vec2(-step_x, -step_y))).xyz;
+    components.northeast = IMG_NORM_PIXEL(fluid, fract(center + vec2( step_x,  step_y))).xyz;
+    components.southeast = IMG_NORM_PIXEL(fluid, fract(center + vec2( step_x, -step_y))).xyz;
+
+    return components;
+}
+
+vec3 FluidComponents_laplacian(FluidComponents components, float centerWeight, float edgeWeight, float vertexWeight)
+{
+    return centerWeight * components.center +
+           edgeWeight   * (components.north + components.east + components.west + components.south) +
+           vertexWeight * (components.northwest + components.southwest + components.northeast + components.southeast);
 }
 
 
@@ -172,59 +179,49 @@ void main()
         const float upd = 0.8;  // update smoothing
         const float sq2 = 0.6;  // diagonal weight
 
-        // 3x3 neighborhood coordinates
-        float step_x = texel.x;
-        float step_y = texel.y;
-        vec2 n  = vec2(0, step_y);
-        vec2 ne = vec2(step_x, step_y);
-        vec2 e  = vec2(step_x, 0);
-        vec2 se = vec2(step_x, -step_y);
-        vec2 s  = vec2(0, -step_y);
-        vec2 sw = vec2(-step_x, -step_y);
-        vec2 w  = vec2(-step_x, 0);
-        vec2 nw = vec2(-step_x, step_y);
-
-        vec3 uv =    IMG_NORM_PIXEL(fluid, fract(vUv)).xyz;
-        vec3 uv_n =  IMG_NORM_PIXEL(fluid, fract(vUv+n)).xyz;
-        vec3 uv_e =  IMG_NORM_PIXEL(fluid, fract(vUv+e)).xyz;
-        vec3 uv_s =  IMG_NORM_PIXEL(fluid, fract(vUv+s)).xyz;
-        vec3 uv_w =  IMG_NORM_PIXEL(fluid, fract(vUv+w)).xyz;
-        vec3 uv_nw = IMG_NORM_PIXEL(fluid, fract(vUv+nw)).xyz;
-        vec3 uv_sw = IMG_NORM_PIXEL(fluid, fract(vUv+sw)).xyz;
-        vec3 uv_ne = IMG_NORM_PIXEL(fluid, fract(vUv+ne)).xyz;
-        vec3 uv_se = IMG_NORM_PIXEL(fluid, fract(vUv+se)).xyz;
+        FluidComponents components = FluidComponents_create(vUv, texel);
 
         // uv.x and uv.y are the x and y components, uv.z is divergence
 
         // laplacian of all components
-        vec3 lapl  = _K0*uv + _K1*(uv_n + uv_e + uv_w + uv_s) + _K2*(uv_nw + uv_sw + uv_ne + uv_se);
+        vec3 lapl = FluidComponents_laplacian(components, _K0, _K1, _K2);
         float sp = ps * lapl.z;
 
         // calculate curl
         // vectors point clockwise about the center point
-        float curl = uv_n.x - uv_s.x - uv_e.y + uv_w.y + sq2 * (uv_nw.x + uv_nw.y + uv_ne.x - uv_ne.y + uv_sw.y - uv_sw.x - uv_se.y - uv_se.x);
+        float curl = components.north.x - components.south.x - components.east.y + components.west.y +
+                     sq2 * (components.northwest.x + components.northwest.y +
+                            components.northeast.x - components.northeast.y +
+                            components.southwest.y - components.southwest.x -
+                            components.southeast.y - components.southeast.x);
 
         // compute angle of rotation from curl
         float sc = cs * sign(curl) * pow(abs(curl), pwr);
 
         // calculate divergence
         // vectors point inwards towards the center point
-        float div  = uv_s.y - uv_n.y - uv_e.x + uv_w.x + sq2 * (uv_nw.x - uv_nw.y - uv_ne.x - uv_ne.y + uv_sw.x + uv_sw.y + uv_se.y - uv_se.x);
-        float sd = uv.z + dp * div + pl * lapl.z;
+        float div = components.south.y - components.north.y - components.east.x + components.west.x +
+                    sq2 * (components.northwest.x - components.northwest.y -
+                           components.northeast.x - components.northeast.y +
+                           components.southwest.x + components.southwest.y +
+                           components.southeast.y - components.southeast.x);
+        float sd = components.center.z + dp * div + pl * lapl.z;
 
-        vec2 norm = normz(uv.xy);
+        vec2 norm = normz(components.center.xy);
 
-        vec3 ab = advect(vec2(uv.x, uv.y), vUv, texel, ad);
+        // reverse advection
+        FluidComponents advectionComponents = FluidComponents_create(vUv - components.center.xy * ad * texel, texel);
+        vec3 ab = FluidComponents_laplacian(advectionComponents, 0.25, 0.125, 0.0625);
 
         // temp values for the update rule
-        float ta = amp * ab.x + ls * lapl.x + norm.x * sp + uv.x * ds * sd;
-        float tb = amp * ab.y + ls * lapl.y + norm.y * sp + uv.y * ds * sd;
+        float ta = amp * ab.x + ls * lapl.x + norm.x * sp + components.center.x * ds * sd;
+        float tb = amp * ab.y + ls * lapl.y + norm.y * sp + components.center.y * ds * sd;
 
         // rotate
         float a = ta * cos(sc) - tb * sin(sc);
         float b = ta * sin(sc) + tb * cos(sc);
 
-        vec3 abd = upd * uv + (1. - upd) * vec3(a,b,sd);
+        vec3 abd = upd * components.center + (1. - upd) * vec3(a, b, sd);
 
         if (enableMouse) {
        	    vec2 d = gl_FragCoord.xy - mouse * RENDERSIZE;
@@ -238,7 +235,7 @@ void main()
             gl_FragColor = vec4(rnd, 1);
         } else {
             abd.z = clamp(abd.z, -1., 1.);
-            abd.xy = clamp(length(abd.xy) > 1. ? normz(abd.xy) : abd.xy, -1., 1.);
+            abd.xy = clamp(length(abd.xy) > 1. ? normalize(abd.xy) : abd.xy, -1., 1.);
             gl_FragColor = vec4(abd, 1);
             gl_FragColor = (1. - inputImageAmount) * gl_FragColor + inputImageAmount * IMG_PIXEL(inputImage, gl_FragCoord.xy);
         }
@@ -248,7 +245,7 @@ void main()
         vec3 c = IMG_NORM_PIXEL(fluid, uv).xyz;
         vec3 norm = normalize(c);
 
-        vec3 div = vec3(0.1) * norm.z;
+        vec3 div = vec3(0.1 * norm.z);
         vec3 rbcol = 0.5 + 0.6 * cross(norm.xyz, vec3(0.5, -0.4, 0.5));
 
         gl_FragColor = vec4(rbcol + div, 1);
