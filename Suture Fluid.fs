@@ -149,13 +149,12 @@ vec3 advect(vec2 ab, vec2 vUv, vec2 step, float sc)
 }
 
 
-#define fragCoord gl_FragCoord
-#define fragColor gl_FragColor
-#define iFrame FRAMEINDEX
-#define iResolution RENDERSIZE
-
 void main()
 {
+    vec2 texel = 1. / RENDERSIZE;
+    vec2 uv = gl_FragCoord.xy / RENDERSIZE;
+    vec2 vUv = uv;
+
     if (PASSINDEX == 0) // ShaderToy Buffer A
     {
         const float _K0 = -20./6.; // center weight
@@ -172,9 +171,6 @@ void main()
         const float amp = 1.;  // self-amplification
         const float upd = 0.8;  // update smoothing
         const float sq2 = 0.6;  // diagonal weight
-
-        vec2 vUv = fragCoord.xy / iResolution.xy;
-        vec2 texel = 1. / iResolution.xy;
 
         // 3x3 neighborhood coordinates
         float step_x = texel.x;
@@ -230,33 +226,31 @@ void main()
 
         vec3 abd = upd * uv + (1. - upd) * vec3(a,b,sd);
 
-       	    vec2 d = fragCoord.xy - mouse * RENDERSIZE;
         if (enableMouse) {
+       	    vec2 d = gl_FragCoord.xy - mouse * RENDERSIZE;
             float m = exp(-0.1 * length(d));
             abd.xy += m * normz(d);
         }
 
         // initialize with noise
-        if (iFrame < 1 || restart) {
+        if (FRAMEINDEX < 1 || restart) {
             vec3 rnd = vec3(noise(16. * vUv + 1.1), noise(16. * vUv + 2.2), noise(16. * vUv + 3.3));
-            fragColor = vec4(rnd, 1);
+            gl_FragColor = vec4(rnd, 1);
         } else {
             abd.z = clamp(abd.z, -1., 1.);
             abd.xy = clamp(length(abd.xy) > 1. ? normz(abd.xy) : abd.xy, -1., 1.);
-            fragColor = vec4(abd, 1);
-            gl_FragColor = (1. - inputImageAmount) * gl_FragColor + inputImageAmount * IMG_PIXEL(inputImage, fragCoord.xy);
+            gl_FragColor = vec4(abd, 1);
+            gl_FragColor = (1. - inputImageAmount) * gl_FragColor + inputImageAmount * IMG_PIXEL(inputImage, gl_FragCoord.xy);
         }
     }
     else // ShaderToy Image
     {
-       	vec2 texel = 1. / iResolution.xy;
-        vec2 uv = fragCoord.xy / iResolution.xy;
         vec3 c = IMG_NORM_PIXEL(fluid, uv).xyz;
         vec3 norm = normalize(c);
 
         vec3 div = vec3(0.1) * norm.z;
         vec3 rbcol = 0.5 + 0.6 * cross(norm.xyz, vec3(0.5, -0.4, 0.5));
 
-        fragColor = vec4(rbcol + div, 1);
+        gl_FragColor = vec4(rbcol + div, 1);
     }
 }
