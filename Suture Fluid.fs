@@ -35,6 +35,94 @@
             "DEFAULT": [0.5, 0.5],
             "MIN": [0, 0],
             "MAX": [1, 1]
+        },
+        {
+            "NAME": "curlScale",
+            "LABEL": "Curl scale",
+            "TYPE": "float",
+            "DEFAULT": -0.6,
+            "MIN": -1,
+            "MAX": 0
+        },
+        {
+            "NAME": "laplacianScale",
+            "LABEL": "Laplacian scale",
+            "TYPE": "float",
+            "DEFAULT": 0.05,
+            "MIN": -1,
+            "MAX": 1
+        },
+        {
+            "NAME": "laplacianDivergenceScale",
+            "LABEL": "Laplacian divergence scale",
+            "TYPE": "float",
+            "DEFAULT": -0.8,
+            "MIN": -1,
+            "MAX": 1
+        },
+        {
+            "NAME": "divergenceScale",
+            "LABEL": "Divergence scale",
+            "TYPE": "float",
+            "DEFAULT": -0.05,
+            "MIN": -1,
+            "MAX": 1
+        },
+        {
+            "NAME": "divergenceUpdateScale",
+            "LABEL": "Divergence update scale",
+            "TYPE": "float",
+            "DEFAULT": -0.04,
+            "MIN": -1,
+            "MAX": 1
+        },
+        {
+            "NAME": "divergenceSmoothing",
+            "LABEL": "Divergence smoothing",
+            "TYPE": "float",
+            "DEFAULT": 0.3,
+            "MIN": 0,
+            "MAX": 1
+        },
+        {
+            "NAME": "advectionDistanceScale",
+            "LABEL": "Advection distance scale",
+            "TYPE": "float",
+            "DEFAULT": 6,
+            "MIN": 1,
+            "MAX": 10
+        },
+        {
+            "NAME": "curlRotationAnglePower",
+            "LABEL": "Curl rotation angle power",
+            "TYPE": "float",
+            "DEFAULT": 1,
+            "MIN": 0,
+            "MAX": 10
+        },
+        {
+            "NAME": "selfAmplification",
+            "LABEL": "Self-amplification",
+            "TYPE": "float",
+            "DEFAULT": 1,
+            "MIN": 0,
+            "MAX": 10
+        },
+        {
+            "NAME": "updateSmoothing",
+            "LABEL": "Update smoothing",
+            "TYPE": "float",
+            "DEFAULT": 0.8,
+            "MIN": 0,
+            "MAX": 1
+        },
+        {
+            "NAME": "diagonalWeight",
+            "LABEL": "Diagonal weight",
+            "TYPE": "float",
+            "DEFAULT": 0.6,
+            "MIN": 0,
+            "MAX": 1
         }
     ],
     "ISFVSN": "2",
@@ -165,24 +253,11 @@ void main()
 
     if (PASSINDEX == 0) // ShaderToy Buffer A
     {
-        const float advectionDistanceScale = 6.;
-
         // It’s unclear whether dividing by the advection distance scale is what
         // was intended in the original ShaderToy shader.
         float laplacianCenterWeight = -20. / advectionDistanceScale;
         float laplacianEdgeWeight = 4. / advectionDistanceScale;
         float laplacianVertexWeight = 1. / advectionDistanceScale;
-
-        const float curlScale = -0.6;
-        const float laplacianScale = 0.05;
-        const float laplacianDivergenceScale = -0.8;
-        const float divergenceScale = -0.05;
-        const float divergenceUpdateScale = -0.04;
-        const float divergenceSmoothing = 0.3;
-        const float curlRotationAnglePower = 1.;
-        const float selfAmplification = 1.;
-        const float updateSmoothing = 0.8;
-        const float diagonalWeight = 0.6;
 
         FluidComponents components = FluidComponents_create(uv, texel);
 
