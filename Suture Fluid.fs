@@ -248,8 +248,9 @@ vec3 FluidComponents_laplacian(FluidComponents components, float centerWeight, f
 
 void main()
 {
-    vec2 texel = 1. / RENDERSIZE;
-    vec2 uv = gl_FragCoord.xy / RENDERSIZE;
+    vec2 position = gl_FragCoord.xy;
+    vec2 texelSize = 1. / RENDERSIZE;
+    vec2 normalizedPosition = position * texelSize;
 
     if (PASSINDEX == 0) // ShaderToy Buffer A
     {
@@ -259,21 +260,14 @@ void main()
         float laplacianEdgeWeight = 4. / advectionDistanceScale;
         float laplacianVertexWeight = 1. / advectionDistanceScale;
 
-        FluidComponents components = FluidComponents_create(uv, texel);
+        FluidComponents components = FluidComponents_create(normalizedPosition, texelSize);
 
         // .x and .y are the x and y components, .z is divergence
 
         // laplacian of all components
         vec3 laplacian = FluidComponents_laplacian(components, laplacianCenterWeight, laplacianEdgeWeight, laplacianVertexWeight);
         float scaledLaplacianDivergence = laplacianDivergenceScale * laplacian.z;
-
-        // calculate curl
-        // vectors point clockwise about the center point
-        float curl = components.north.x - components.south.x - components.east.y + components.west.y +
-                     diagonalWeight * (components.northwest.x + components.northwest.y +
-                                       components.northeast.x - components.northeast.y +
-                                       components.southwest.y - components.southwest.x -
-                                       components.southeast.y - components.southeast.x);
+        vec2 normalizedCenterComponent = components.center.xy == vec2(0) ? components.center.xy : normalize(components.center.xy);
 
         // calculate divergence
         // vectors point inwards towards the center point
@@ -284,17 +278,25 @@ void main()
                                              components.southeast.y - components.southeast.x);
         float smoothedDivergence = components.center.z + divergenceUpdateScale * divergence + divergenceSmoothing * laplacian.z;
 
-        vec2 normalizedCenterComponent = components.center.xy == vec2(0) ? components.center.xy : normalize(components.center.xy);
-
         // reverse advection
-        FluidComponents advectionComponents = FluidComponents_create(uv - components.center.xy * advectionDistanceScale * texel, texel);
-        vec3 advectionLaplacian = FluidComponents_laplacian(advectionComponents, 0.25, 0.125, 0.0625);
+        vec3 advectionLaplacian = FluidComponents_laplacian(
+            FluidComponents_create(normalizedPosition - components.center.xy * advectionDistanceScale * texelSize, texelSize),
+            0.25, 0.125, 0.0625
+        );
 
         // temp values for the update rule
-        vec2 ab = selfAmplification * advectionLaplacian.xy +
-                  laplacianScale * laplacian.xy +
+        vec2 ab = laplacianScale * laplacian.xy +
                   scaledLaplacianDivergence * normalizedCenterComponent.xy +
-                  divergenceScale * smoothedDivergence * components.center.xy;
+                  divergenceScale * smoothedDivergence * components.center.xy +
+                  selfAmplification * advectionLaplacian.xy;
+
+        // calculate curl
+        // vectors point clockwise about the center point
+        float curl = components.north.x - components.south.x - components.east.y + components.west.y +
+                     diagonalWeight * (components.northwest.x + components.northwest.y +
+                                       components.northeast.x - components.northeast.y +
+                                       components.southwest.y - components.southwest.x -
+                                       components.southeast.y - components.southeast.x);
 
         // rotate
         ab = rotate2d(curlScale * sign(curl) * pow(abs(curl), curlRotationAnglePower)) * ab;
@@ -302,7 +304,7 @@ void main()
         vec3 abd = updateSmoothing * components.center + (1. - updateSmoothing) * vec3(ab, smoothedDivergence);
 
         if (enableMouse) {
-       	    vec2 displacement = gl_FragCoord.xy - mouse * RENDERSIZE;
+       	    vec2 displacement = position - mouse * RENDERSIZE;
             float distance = length(displacement);
             if (distance > 0.) {
                 abd.xy += exp(-0.1 * distance) * normalize(displacement);
@@ -311,8 +313,8 @@ void main()
 
         // initialize with noise
         if (FRAMEINDEX < 1 || restart) {
-            vec2 scaled_uv = 16. * uv;
-            gl_FragColor.rgb = vec3(noise(scaled_uv + 1.1), noise(scaled_uv + 2.2), noise(scaled_uv + 3.3));
+            vec2 scaledPosition = 16. * normalizedPosition;
+            gl_FragColor.rgb = vec3(noise(scaledPosition + 1.1), noise(scaledPosition + 2.2), noise(scaledPosition + 3.3));
             gl_FragColor.a = 1.;
         } else {
             gl_FragColor.rg = clamp(length(abd.xy) > 1. ? normalize(abd.xy) : abd.xy, -1., 1.);
@@ -323,7 +325,7 @@ void main()
     }
     else // ShaderToy Image
     {
-        vec3 abd = normalize(IMG_NORM_PIXEL(fluid, uv).xyz);
+        vec3 abd = normalize(IMG_NORM_PIXEL(fluid, normalizedPosition).xyz);
 
         vec3 color = 0.5 + 0.6 * cross(abd, vec3(0.5, -0.4, 0.5));
         vec3 divergence = vec3(0.1 * abd.z);
