@@ -226,9 +226,9 @@ FluidComponents FluidComponents_create(vec2 center, vec2 stepSizes)
     components.center = IMG_NORM_PIXEL(fluid, fract(center)).xyz;
 
     components.north = IMG_NORM_PIXEL(fluid, fract(center + vec2(      0,  step_y))).xyz;
-    components.east =  IMG_NORM_PIXEL(fluid, fract(center + vec2( step_x,       0))).xyz;
+    components.east  = IMG_NORM_PIXEL(fluid, fract(center + vec2( step_x,       0))).xyz;
     components.south = IMG_NORM_PIXEL(fluid, fract(center + vec2(      0, -step_y))).xyz;
-    components.west =  IMG_NORM_PIXEL(fluid, fract(center + vec2(-step_x,       0))).xyz;
+    components.west  = IMG_NORM_PIXEL(fluid, fract(center + vec2(-step_x,       0))).xyz;
 
     components.northwest = IMG_NORM_PIXEL(fluid, fract(center + vec2(-step_x,  step_y))).xyz;
     components.southwest = IMG_NORM_PIXEL(fluid, fract(center + vec2(-step_x, -step_y))).xyz;
