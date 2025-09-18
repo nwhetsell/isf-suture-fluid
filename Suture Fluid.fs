@@ -136,8 +136,7 @@
 
         }
     ]
-}
-*/
+}*/
 
 // Function from LYGIA <https://github.com/patriciogonzalezvivo/lygia>
 mat2 rotate2d(const in float r) {
